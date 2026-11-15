@@ -1,6 +1,6 @@
 # Understanding `vibe/core/types.py` — the shared data model of the engine
 
-> Source studied: [`vibe/core/types.py`](../../../../vibe/core/types.py) (798 lines) at commit `5e931ff3` (v2.26.1).
+> Source studied: [`vibe/core/types.py`](../../../../vibe/core/types.py) (797 lines) at commit `5e931ff3` (v2.26.1).
 > Report produced with the help of an AI coding agent; every claim below was checked against the code
 > (file and line links are given so the reader can verify them). See [§10 Method](#10-method-and-limits) for what was and was not verified.
 
@@ -37,6 +37,11 @@ LLM backends, the agent loop, the tools, the session logger and the app server:
 
 Its importance is visible in the numbers: **84 source files and 144 test files import from it**
 (`grep -rl "from vibe.core.types import"`). A change here ripples through the whole code base.
+
+One caveat frames the whole report: most of this model (messages, chunks, events) is the vocabulary of the
+**legacy Python runtime**. The default runtime since this version, the Unified Harness, only uses
+`SessionMetadata` and `ScheduledLoop` from this file (see
+[Two runtimes](#two-runtimes-where-typespy-is-and-isnt-used)).
 
 ---
 
@@ -99,6 +104,34 @@ else:
 `tools/base.py` itself needs `types.py`, so a real import would create a **circular import**. Under the type
 checker (`pyright`) `BaseTool` is the real class; at runtime it is `Any`, which is why `BaseEvent` enables
 `arbitrary_types_allowed=True`.
+
+### Two runtimes: where `types.py` is (and isn't) used
+
+Mistral Vibe v2.26.1 ships **two agent runtimes**, and this matters for everything that follows:
+
+| | Unified Harness | Legacy Python harness |
+|---|---|---|
+| When it runs | **default**, unconditionally | only with `vibe --legacy-harness` |
+| Where | external runtime module `mistralai_vibe_local_harness` (Rust core in [`harness/`](../../../../harness/)), wired in by [`app_server/_unified_harness_backend_adapter.py`](../../../../vibe/app_server/_unified_harness_backend_adapter.py) | [`core/agent_loop/_loop.py`](../../../../vibe/core/agent_loop/_loop.py) (`AgentLoop`) |
+| Use of `types.py` | only `SessionMetadata` and `ScheduledLoop` | the whole model: messages, chunks, events, `MessageList`, `AgentStats`… |
+
+Sources: [`_experimental_harness.py:123-137`](../../../../vibe/_experimental_harness.py#L123-L137)
+("Default and `--experimental-harness` -> unified, unconditionally"), the comment at
+[`app_server/_runtime.py:1296-1299`](../../../../vibe/app_server/_runtime.py#L1296-L1299), and
+[`CHANGELOG.md`](../../../../CHANGELOG.md) ("`--legacy-harness` is the documented escape hatch back to the legacy
+Python harness"). The Unified Harness has its own message and event types; its adapter imports nothing else from
+`types.py`.
+
+On the default path, `types.py` still matters in three ways:
+
+- `SessionMetadata` describes every session, whichever runtime produced it.
+- `LLMMessage` is the format of legacy session transcripts on disk.
+  [`core/session/session_interop.py`](../../../../vibe/core/session/session_interop.py) uses it to export and import
+  committed history between the two runtimes (`export_legacy_committed_history`, `import_unified_committed_history`).
+- The app server's `EventProjector`, which consumes the events of `types.py`, is reused by the unified adapter.
+
+So, unless stated otherwise, **the flows described in this report (§5 in particular) are those of the legacy Python
+runtime**. They remain the clearest picture of how the data model is meant to be used.
 
 ### Main modules that use it
 
@@ -372,6 +405,10 @@ classDiagram
 ---
 
 ## 5. Life of a turn, seen through the types
+
+> **Runtime note.** This sequence is the **legacy Python runtime** (`vibe --legacy-harness`). The default Unified
+> Harness runs the turn in its own runtime with its own types; see
+> [Two runtimes](#two-runtimes-where-typespy-is-and-isnt-used).
 
 The sequence below follows one user prompt that makes the model call a tool. It is reconstructed from
 [`_loop.py:3377-3420`](../../../../vibe/core/agent_loop/_loop.py#L3377-L3420), the request broker and the projector.
@@ -747,7 +784,7 @@ These come from reading the code (see [§10](#10-method-and-limits)). They are o
 | F5 | **One listener per field in `AgentStats`.** `_listeners` is a `dict[str, Callable]`, so a second `add_listener("x", ...)` silently replaces the first. | [types.py:87-90](../../../../vibe/core/types.py#L87-L90) | fine with one subscriber; a trap if a second appears |
 | F6 | **Two classes named `RefusalError`.** `vibe/acp/exceptions.py:125` defines another one, which ACP maps the core one into. | grep | not a bug, but confusing when reading imports |
 | F7 | **`frozen` is shallow.** `LLMChunk` is frozen, but its `message: LLMMessage` is mutable. | [types.py:502-507](../../../../vibe/core/types.py#L502-L507) | immutability is a convention, not a guarantee |
-| F8 | **The module is large and mixes concerns** (wire types, events, session records, stats, errors). | 798 lines, 50+ public names, no `__all__` | splitting it (e.g. `events.py`, `session_types.py`) would make ownership clearer; AGENTS.md asks `__init__` files to expose an `__all__`, but this module has none |
+| F8 | **The module is large and mixes concerns** (wire types, events, session records, stats, errors). | 797 lines, 50+ public names, no `__all__` | splitting it (e.g. `events.py`, `session_types.py`) would make ownership clearer; AGENTS.md asks `__init__` files to expose an `__all__`, but this module has none |
 
 ### 9.4 Usage statistics
 
@@ -800,3 +837,8 @@ and scheduled loops have each added a field or a type.
   semantic call graph.
 - **Not covered.** How each LLM backend builds `LLMChunk`s from its provider's format, and the public types the
   app server projects events into. Both deserve their own reports and would link well with this one.
+- **Correction added after the first version.** The first version of this report did not mention that the Unified
+  Harness is the default runtime, and presented the legacy Python flow as the general one. This was found while
+  checking the turn scenario for the interactive site, and is now stated in
+  [Two runtimes](#two-runtimes-where-typespy-is-and-isnt-used) and in §5. The Unified Harness itself (its runtime
+  and types) is not covered here.
