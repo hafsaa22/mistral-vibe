@@ -45,7 +45,9 @@ Raccourcis : `1` à `6` pour aller à une section, `0` pour revenir en haut ; `�
 | §3 La vie d'un message | « Liste les fichiers de mon projet. » en 9 étapes, de `act()` à la réponse finale | Précédent / Suivant / Recommencer, variante `rm -rf build` pour la demande d'approbation |
 | §4 Streaming Lab | reconstruction de `"Bon" + "jour" + " !"` et d'arguments JSON d'un appel d'outil | fragment par fragment, règles appliquées, comparaison naïf/réel, cas limites |
 | §5 Choix de conception | 11 choix classés en style architectural, patterns et techniques | filtres, cartes dépliables (problème, solution, avantage, exemple) |
-| §6 Conclusion | trois messages à retenir et liens vers les sujets voisi## Sources
+| §6 Conclusion | trois messages à retenir et liens vers les sujets voisins | — |
+
+## Sources
 
 - Code étudié : [`vibe/core/types.py`](https://github.com/rrobbes/mistral-vibe/blob/5e931ff306602964a7abbabb7d3026dd76c71e31/vibe/core/types.py) au commit `5e931ff3` (v2.26.1). Aucun fichier Python de `vibe/` n'a changé entre ce commit et `origin/main` au 15/11/2026.
 - Code lu pour suivre les flux : `vibe/core/agent_loop/_loop.py`, `_request_broker.py`, `vibe/core/agent_loop_hooks.py`, `vibe/core/llm/backend/{mistral,generic}.py`, `vibe/core/llm/format.py`, `vibe/core/tools/builtins/bash.py`, `vibe/core/session/`, `vibe/core/rewind/manager.py`, `vibe/app_server/{_projector,_turns,_runtime}.py`, `vibe/_experimental_harness.py`.
