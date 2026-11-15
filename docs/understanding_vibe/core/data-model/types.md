@@ -1,6 +1,6 @@
 # Understanding `vibe/core/types.py` — the shared data model of the engine
 
-> Source studied: [`vibe/core/types.py`](../../vibe/core/types.py) (798 lines) at commit `5e931ff3` (v2.26.1).
+> Source studied: [`vibe/core/types.py`](../../../../vibe/core/types.py) (798 lines) at commit `5e931ff3` (v2.26.1).
 > Report produced with the help of an AI coding agent; every claim below was checked against the code
 > (file and line links are given so the reader can verify them). See [§10 Method](#10-method-and-limits) for what was and was not verified.
 
@@ -43,7 +43,7 @@ Its importance is visible in the numbers: **84 source files and 144 test files i
 ## 2. Where the module sits in the architecture
 
 Mistral Vibe separates a reusable engine (`vibe/core`) from delivery surfaces (Textual CLI, Rust CLI, ACP),
-with `vibe/app_server` in between ([ADR 0002](../adr/0002-core-engine-and-delivery-surfaces.md)).
+with `vibe/app_server` in between ([ADR 0002](../../../adr/0002-core-engine-and-delivery-surfaces.md)).
 `types.py` sits at the very bottom of `vibe/core`: almost everything depends on it, and it depends on very little.
 
 ```mermaid
@@ -76,7 +76,7 @@ flowchart TB
 
 ### Outgoing dependencies (what `types.py` imports)
 
-From [types.py:13-33](../../vibe/core/types.py#L13-L33):
+From [types.py:13-33](../../../../vibe/core/types.py#L13-L33):
 
 | Import | Used for |
 |---|---|
@@ -104,53 +104,53 @@ checker (`pyright`) `BaseTool` is the real class; at runtime it is `Any`, which 
 
 | Module | Role with respect to `types.py` |
 |---|---|
-| [`core/agent_loop/_loop.py`](../../vibe/core/agent_loop/_loop.py) | **Main producer**: creates the `MessageList`, aggregates `LLMChunk`s, yields almost every event, raises the backend errors, owns `AgentStats` |
-| [`core/agent_loop/_request_broker.py`](../../vibe/core/agent_loop/_request_broker.py) | builds `ApprovalRequestEvent` / `UserInputRequestEvent` |
-| [`core/llm/backend/`](../../vibe/core/llm/backend/) (`mistral.py`, `generic.py`, `anthropic.py`, `openai_responses.py`, `reasoning_adapter.py`) | **produce** `LLMChunk`s from provider responses |
-| [`core/llm/format.py`](../../vibe/core/llm/format.py) | turns tools into `AvailableTool` declarations for the model |
-| [`core/session/session_logger.py`](../../vibe/core/session/session_logger.py) | serialises `LLMMessage` and `SessionMetadata` to disk |
-| [`core/rewind/manager.py`](../../vibe/core/rewind/manager.py) | subscribes to `MessageList.on_reset` |
-| [`core/tools/builtins/read_file.py`](../../vibe/core/tools/builtins/read_file.py), `experimental_bash.py`, [`core/subagents.py`](../../vibe/core/subagents.py) | emit `ToolStreamEvent` progress |
-| [`app_server/_projector.py`](../../vibe/app_server/_projector.py) | **main consumer**: `match`es on core events and projects them into public client updates |
-| [`app_server/_turns.py`](../../vibe/app_server/_turns.py) | answers `ApprovalRequestEvent` / `UserInputRequestEvent` through client callbacks |
-| [`app_server/_runtime.py`](../../vibe/app_server/_runtime.py) | restores sessions with `MessageList.reset_preserving_system` |
-| [`app_server/_shell_requests.py`](../../vibe/app_server/_shell_requests.py) | builds `ManualShellContext` for user-typed `!` shell commands |
+| [`core/agent_loop/_loop.py`](../../../../vibe/core/agent_loop/_loop.py) | **Main producer**: creates the `MessageList`, aggregates `LLMChunk`s, yields almost every event, raises the backend errors, owns `AgentStats` |
+| [`core/agent_loop/_request_broker.py`](../../../../vibe/core/agent_loop/_request_broker.py) | builds `ApprovalRequestEvent` / `UserInputRequestEvent` |
+| [`core/llm/backend/`](../../../../vibe/core/llm/backend/) (`mistral.py`, `generic.py`, `anthropic.py`, `openai_responses.py`, `reasoning_adapter.py`) | **produce** `LLMChunk`s from provider responses |
+| [`core/llm/format.py`](../../../../vibe/core/llm/format.py) | turns tools into `AvailableTool` declarations for the model |
+| [`core/session/session_logger.py`](../../../../vibe/core/session/session_logger.py) | serialises `LLMMessage` and `SessionMetadata` to disk |
+| [`core/rewind/manager.py`](../../../../vibe/core/rewind/manager.py) | subscribes to `MessageList.on_reset` |
+| [`core/tools/builtins/read_file.py`](../../../../vibe/core/tools/builtins/read_file.py), `experimental_bash.py`, [`core/subagents.py`](../../../../vibe/core/subagents.py) | emit `ToolStreamEvent` progress |
+| [`app_server/_projector.py`](../../../../vibe/app_server/_projector.py) | **main consumer**: `match`es on core events and projects them into public client updates |
+| [`app_server/_turns.py`](../../../../vibe/app_server/_turns.py) | answers `ApprovalRequestEvent` / `UserInputRequestEvent` through client callbacks |
+| [`app_server/_runtime.py`](../../../../vibe/app_server/_runtime.py) | restores sessions with `MessageList.reset_preserving_system` |
+| [`app_server/_shell_requests.py`](../../../../vibe/app_server/_shell_requests.py) | builds `ManualShellContext` for user-typed `!` shell commands |
 
 ---
 
 ## 3. Catalogue of the types
 
-All line numbers refer to [`vibe/core/types.py`](../../vibe/core/types.py).
+All line numbers refer to [`vibe/core/types.py`](../../../../vibe/core/types.py).
 
 ### 3.1 Conversation messages
 
 | Type | Line | Kind | Purpose |
 |---|---|---|---|
-| `Role` | [271](../../vibe/core/types.py#L271) | `StrEnum` | `system`, `user`, `assistant`, `tool` (values are lower-case strings, via `auto()`) |
-| `Content` | [268](../../vibe/core/types.py#L268) | annotated `str` | a string that also accepts provider-style lists of parts and flattens them |
-| `LLMMessage` | [346](../../vibe/core/types.py#L346) | model | one message of the conversation — the central type of the module |
-| `FunctionCall` | [241](../../vibe/core/types.py#L241) | model | `name` + JSON `arguments` *string* (may be partial while streaming) |
-| `ToolCall` | [246](../../vibe/core/types.py#L246) | model | a tool call requested by the model: `id`, stream `index`, `function`, UI `presentation` |
-| `ImageAttachment` | [300](../../vibe/core/types.py#L300) | model | an image attached to a message; its `source` is a *discriminated union* of… |
-| `FileImageSource` / `InlineImageSource` | [283](../../vibe/core/types.py#L283) / [290](../../vibe/core/types.py#L290) | model | …an image on disk (`kind="file"`) or base64 in memory (`kind="inline"`, never persisted) |
-| `PersistedToolResult` | [321](../../vibe/core/types.py#L321) | model | the structured result of a tool, stored on the `tool` message |
-| `ManualShellContext` | [330](../../vibe/core/types.py#L330) | model | a shell command the *user* ran themselves (stdout, stderr, exit code…) |
-| `MessageList` | [670](../../vibe/core/types.py#L670) | plain class | the conversation history (see [§6.5](#65-messagelist-a-small-amount-of-locking-in-the-right-places)) |
+| `Role` | [271](../../../../vibe/core/types.py#L271) | `StrEnum` | `system`, `user`, `assistant`, `tool` (values are lower-case strings, via `auto()`) |
+| `Content` | [268](../../../../vibe/core/types.py#L268) | annotated `str` | a string that also accepts provider-style lists of parts and flattens them |
+| `LLMMessage` | [346](../../../../vibe/core/types.py#L346) | model | one message of the conversation — the central type of the module |
+| `FunctionCall` | [241](../../../../vibe/core/types.py#L241) | model | `name` + JSON `arguments` *string* (may be partial while streaming) |
+| `ToolCall` | [246](../../../../vibe/core/types.py#L246) | model | a tool call requested by the model: `id`, stream `index`, `function`, UI `presentation` |
+| `ImageAttachment` | [300](../../../../vibe/core/types.py#L300) | model | an image attached to a message; its `source` is a *discriminated union* of… |
+| `FileImageSource` / `InlineImageSource` | [283](../../../../vibe/core/types.py#L283) / [290](../../../../vibe/core/types.py#L290) | model | …an image on disk (`kind="file"`) or base64 in memory (`kind="inline"`, never persisted) |
+| `PersistedToolResult` | [321](../../../../vibe/core/types.py#L321) | model | the structured result of a tool, stored on the `tool` message |
+| `ManualShellContext` | [330](../../../../vibe/core/types.py#L330) | model | a shell command the *user* ran themselves (stdout, stderr, exit code…) |
+| `MessageList` | [670](../../../../vibe/core/types.py#L670) | plain class | the conversation history (see [§6.5](#65-messagelist--a-small-amount-of-locking-in-the-right-places)) |
 
 ### 3.2 Model I/O
 
 | Type | Line | Kind | Purpose |
 |---|---|---|---|
-| `AvailableFunction`, `AvailableTool` | [230](../../vibe/core/types.py#L230), [236](../../vibe/core/types.py#L236) | model | the JSON-schema description of a tool, as sent to the model |
-| `StrToolChoice` | [227](../../vibe/core/types.py#L227) | `Literal` | `"auto" \| "none" \| "any" \| "required"` |
-| `LLMChunk` | [502](../../vibe/core/types.py#L502) | frozen model | one streamed piece of answer: `message` + optional `usage`, `stop`, `correlation_id` |
-| `LLMUsage` | [472](../../vibe/core/types.py#L472) | frozen model | `prompt_tokens`, `completion_tokens`, `cached_tokens` (cached ⊂ prompt) |
-| `StopInfo`, `StopReason` | [491](../../vibe/core/types.py#L491), [487](../../vibe/core/types.py#L487) | frozen model, `StrEnum` | why the stream stopped; `is_refusal` is true when `reason == "refusal"` |
-| `Backend` | [46](../../vibe/core/types.py#L46) | `StrEnum` | `mistral` or `generic` backend family |
+| `AvailableFunction`, `AvailableTool` | [230](../../../../vibe/core/types.py#L230), [236](../../../../vibe/core/types.py#L236) | model | the JSON-schema description of a tool, as sent to the model |
+| `StrToolChoice` | [227](../../../../vibe/core/types.py#L227) | `Literal` | `"auto" \| "none" \| "any" \| "required"` |
+| `LLMChunk` | [502](../../../../vibe/core/types.py#L502) | frozen model | one streamed piece of answer: `message` + optional `usage`, `stop`, `correlation_id` |
+| `LLMUsage` | [472](../../../../vibe/core/types.py#L472) | frozen model | `prompt_tokens`, `completion_tokens`, `cached_tokens` (cached ⊂ prompt) |
+| `StopInfo`, `StopReason` | [491](../../../../vibe/core/types.py#L491), [487](../../../../vibe/core/types.py#L487) | frozen model, `StrEnum` | why the stream stopped; `is_refusal` is true when `reason == "refusal"` |
+| `Backend` | [46](../../../../vibe/core/types.py#L46) | `StrEnum` | `mistral` or `generic` backend family |
 
 ### 3.3 Events (the agent loop → app server contract)
 
-All inherit from `BaseEvent` ([522](../../vibe/core/types.py#L522)), an abstract Pydantic model.
+All inherit from `BaseEvent` ([522](../../../../vibe/core/types.py#L522)), an abstract Pydantic model.
 
 | Event | Emitted when | Main producer |
 |---|---|---|
@@ -172,18 +172,18 @@ All inherit from `BaseEvent` ([522](../../vibe/core/types.py#L522)), an abstract
 | `BackgroundWorkEvent` | background work (today only `"session_title"`) `started` / `finished` | `_loop.py` |
 
 Two callback aliases complete the picture: `SwitchAgentCallback` and `ClearContextCallback`
-([665-667](../../vibe/core/types.py#L665-L667)), written with the Python 3.12 `type X = ...` syntax.
+([665-667](../../../../vibe/core/types.py#L665-L667)), written with the Python 3.12 `type X = ...` syntax.
 
 ### 3.4 Session and statistics
 
 | Type | Line | Purpose |
 |---|---|---|
-| `SessionMetadata` | [185](../../vibe/core/types.py#L185) | everything stored about a session besides its messages: git state, environment, title, pin/archive/seen timestamps, experiments, config snapshot, children, loops, worktree |
-| `SessionInfo` | [155](../../vibe/core/types.py#L155) | a light summary (id, start, count, stats, save dir) |
-| `ChildSessionLink` | [163](../../vibe/core/types.py#L163) | links a parent session to a subagent session through the `tool_call_id` that spawned it |
-| `WorktreeContext` | [175](../../vibe/core/types.py#L175) | git worktree created for the session |
-| `ScheduledLoop` | [36](../../vibe/core/types.py#L36) | a recurring prompt (`/loop`) with interval and next fire time |
-| `AgentStats` | [51](../../vibe/core/types.py#L51) | cumulative and per-turn tokens, tool-call counters, speed, pricing, computed cost |
+| `SessionMetadata` | [185](../../../../vibe/core/types.py#L185) | everything stored about a session besides its messages: git state, environment, title, pin/archive/seen timestamps, experiments, config snapshot, children, loops, worktree |
+| `SessionInfo` | [155](../../../../vibe/core/types.py#L155) | a light summary (id, start, count, stats, save dir) |
+| `ChildSessionLink` | [163](../../../../vibe/core/types.py#L163) | links a parent session to a subagent session through the `tool_call_id` that spawned it |
+| `WorktreeContext` | [175](../../../../vibe/core/types.py#L175) | git worktree created for the session |
+| `ScheduledLoop` | [36](../../../../vibe/core/types.py#L36) | a recurring prompt (`/loop`) with interval and next fire time |
+| `AgentStats` | [51](../../../../vibe/core/types.py#L51) | cumulative and per-turn tokens, tool-call counters, speed, pricing, computed cost |
 
 ### 3.5 Errors
 
@@ -195,7 +195,7 @@ Two callback aliases complete the picture: `SwitchAgentCallback` and `ClearConte
 | `RefusalError` | `_loop.py` when `StopInfo.is_refusal` | includes the provider's `category` and `explanation` |
 
 All four store `provider` and `model`, so the app server can map them to client errors
-([`app_server/_utils.py:136`](../../vibe/app_server/_utils.py#L136)).
+([`app_server/_utils.py:136`](../../../../vibe/app_server/_utils.py#L136)).
 
 ---
 
@@ -374,7 +374,7 @@ classDiagram
 ## 5. Life of a turn, seen through the types
 
 The sequence below follows one user prompt that makes the model call a tool. It is reconstructed from
-[`_loop.py:3377-3420`](../../vibe/core/agent_loop/_loop.py#L3377-L3420), the request broker and the projector.
+[`_loop.py:3377-3420`](../../../../vibe/core/agent_loop/_loop.py#L3377-L3420), the request broker and the projector.
 
 ```mermaid
 sequenceDiagram
@@ -415,13 +415,13 @@ sequenceDiagram
 
 What each type contributes:
 
-1. **`AvailableTool`** tells the model which tools exist (built in [`llm/format.py`](../../vibe/core/llm/format.py)).
+1. **`AvailableTool`** tells the model which tools exist (built in [`llm/format.py`](../../../../vibe/core/llm/format.py)).
 2. **`LLMChunk`** carries each piece of the answer; **`+`** rebuilds the full message.
 3. **`LLMMessage`** with `tool_calls` is what gets stored in **`MessageList`** and later written to disk
    by the session logger with `model_dump(exclude_none=True, mode="json")`
-   ([`session_logger.py:442`](../../vibe/core/session/session_logger.py#L442)).
+   ([`session_logger.py:442`](../../../../vibe/core/session/session_logger.py#L442)).
 4. **Events** are the only thing the app server sees; the app server never reads the loop's private state
-   ([ADR 0003](../adr/0003-event-driven-agent-loop.md)).
+   ([ADR 0003](../../../adr/0003-event-driven-agent-loop.md)).
 5. **`AgentStats`** is updated from the summed **`LLMUsage`**.
 
 ---
@@ -430,7 +430,7 @@ What each type contributes:
 
 ### 6.1 `LLMMessage._from_any` — accept almost anything, always give it an id
 
-[types.py:367-399](../../vibe/core/types.py#L367-L399)
+[types.py:367-399](../../../../vibe/core/types.py#L367-L399)
 
 ```python
 @model_validator(mode="before")
@@ -453,13 +453,13 @@ This "before" validator runs before Pydantic checks the fields. It does three th
 - **Defaults**: a missing `role` becomes `"assistant"` and a missing `content` becomes `""`.
 - **Identity**: every non-`tool` message gets a fresh UUID `message_id`. The rewind feature and the app server
   use these ids to find messages again. `tool` messages are identified by `tool_call_id`, so they get none
-  (tested in [`tests/test_message_id.py`](../../tests/test_message_id.py)).
+  (tested in [`tests/test_message_id.py`](../../../../tests/test_message_id.py)).
 - **Duck typing**: if `v` is not a dict, for example a provider SDK object, its attributes are read with
   `getattr`. Any object that looks like a message can therefore be validated into an `LLMMessage`.
 
 ### 6.2 `LLMMessage.__add__` — rebuilding a streamed message
 
-[types.py:401-469](../../vibe/core/types.py#L401-L469). Streaming APIs send a message in many fragments. Text is
+[types.py:401-469](../../../../vibe/core/types.py#L401-L469). Streaming APIs send a message in many fragments. Text is
 simply concatenated, but **tool calls are fragmented too**: the first fragment usually carries the `id` and the
 `name`, and later ones carry pieces of the JSON `arguments`. Fragments are grouped by their stream `index`:
 
@@ -496,7 +496,7 @@ Rules worth knowing:
 
 ### 6.3 `LLMChunk.__add__` and `LLMUsage.__add__` — a small monoid
 
-[types.py:479-519](../../vibe/core/types.py#L479-L519)
+[types.py:479-519](../../../../vibe/core/types.py#L479-L519)
 
 ```python
 def __add__(self, other: LLMChunk) -> LLMChunk:
@@ -514,7 +514,7 @@ def __add__(self, other: LLMChunk) -> LLMChunk:
 
 Because chunks can be summed, the agent loop's streaming code stays very short:
 `chunk_agg = processed_chunk if chunk_agg is None else chunk_agg + processed_chunk`
-([`_loop.py:3394-3398`](../../vibe/core/agent_loop/_loop.py#L3394-L3398)). Here the **right** operand wins
+([`_loop.py:3394-3398`](../../../../vibe/core/agent_loop/_loop.py#L3394-L3398)). Here the **right** operand wins
 for `stop` and `correlation_id`, because the latest chunk is the most informative. Message merging works the
 other way: the left operand wins.
 
@@ -545,13 +545,13 @@ def _migrate_flat_source(cls, value: Any) -> Any:
 `Content` normalises OpenAI/Anthropic-style *content parts* into one string. `_migrate_flat_source` is a
 **lazy migration**: old session files stored `{"path": ..., "alias": ...}`, and they are converted to the
 new `{"source": {"kind": "file", "path": ...}}` shape whenever they are read. The file on disk is not rewritten.
-This is the approach [ADR 0006](../adr/0006-local-sessions.md) asks for ("tolerant of old transcript shapes
+This is the approach [ADR 0006](../../../adr/0006-local-sessions.md) asks for ("tolerant of old transcript shapes
 through migrations"). `SessionMetadata.unseen_at` / `seen_at` follow the same idea
-([types.py:210-213](../../vibe/core/types.py#L210-L213)).
+([types.py:210-213](../../../../vibe/core/types.py#L210-L213)).
 
 ### 6.5 `MessageList` — a small amount of locking in the right places
 
-[types.py:670-745](../../vibe/core/types.py#L670-L745). The conversation is not a plain `list`. It is a
+[types.py:670-745](../../../../vibe/core/types.py#L670-L745). The conversation is not a plain `list`. It is a
 `Sequence[LLMMessage]` with a re-entrant lock, because a *deferred-initialisation thread* may insert the system
 prompt while the main thread is already working with the list.
 
@@ -573,12 +573,12 @@ between elements. Single operations (`append`, `len`, `[i]`) rely on the GIL and
 overwriting slot 0. Under deferred initialisation, slot 0 may already hold a user message.
 
 `on_reset(hook)` is a tiny observer mechanism. The `RewindManager` registers itself
-([`rewind/manager.py:37`](../../vibe/core/rewind/manager.py#L37)) so that it can drop its checkpoints whenever
+([`rewind/manager.py:37`](../../../../vibe/core/rewind/manager.py#L37)) so that it can drop its checkpoints whenever
 the history is replaced.
 
 ### 6.6 `AgentStats` — a model that notifies listeners
 
-[types.py:74-96](../../vibe/core/types.py#L74-L96)
+[types.py:74-96](../../../../vibe/core/types.py#L74-L96)
 
 ```python
 _listeners: dict[str, Callable[[AgentStats], None]] = PrivateAttr(default_factory=dict)
@@ -591,7 +591,7 @@ def __setattr__(self, name: str, value: Any) -> None:
 
 Assigning a field calls the listener registered for that field name. `create_fresh(previous)` builds blank
 stats that **keep the listeners**. It is used when history is cleared or a session is loaded
-([`_loop.py:3629`, `3700`](../../vibe/core/agent_loop/_loop.py#L3629)), so subscribers keep working.
+([`_loop.py:3629`, `3700`](../../../../vibe/core/agent_loop/_loop.py#L3629)), so subscribers keep working.
 `session_cost` is a Pydantic `computed_field`: it appears in `model_dump()` but is never stored. Its docstring
 accepts a known approximation: if the model changes mid-session, the *current* price is applied to every token.
 
@@ -606,7 +606,7 @@ accepts a known approximation: if the model changes mid-session, the *current* p
 | `role` | `Role` | `"assistant"` (via validator) | author of the message |
 | `content` | `Content \| None` | `""` (via validator) | text; list-of-parts input is flattened |
 | `images` | `list[ImageAttachment] \| None` | `None` | attached images |
-| `injected` | `bool` | `False` | added by the system, not typed by the user (e.g. the compaction summary); rewind skips these ([`rewind/manager.py:57`](../../vibe/core/rewind/manager.py#L57)) |
+| `injected` | `bool` | `False` | added by the system, not typed by the user (e.g. the compaction summary); rewind skips these ([`rewind/manager.py:57`](../../../../vibe/core/rewind/manager.py#L57)) |
 | `reasoning_content` | `Content \| None` | `None` | model "thinking" text |
 | `reasoning_payloads` | `list[dict] \| None` | `None` | opaque provider reasoning blobs to send back unchanged |
 | `reasoning_message_id` | `str \| None` | UUID if `reasoning_content` | id for the reasoning block |
@@ -619,7 +619,7 @@ accepts a known approximation: if the model changes mid-session, the *current* p
 | `input_text` | `str \| None` | `None` | the raw text the user typed |
 | `resources` | `list[UserResource] \| None` | `None` | files/links attached by the user |
 | `manual_shell` | `ManualShellContext \| None` | `None` | a `!command` the user ran |
-| `context_boundary` | `"compaction" \| None` | `None` | marks the compaction summary; model requests start from the latest one ([ADR 0006](../adr/0006-local-sessions.md)) |
+| `context_boundary` | `"compaction" \| None` | `None` | marks the compaction summary; model requests start from the latest one ([ADR 0006](../../../adr/0006-local-sessions.md)) |
 
 Unknown keys are **ignored** (`extra="ignore"`), so a transcript written by a newer version still loads.
 
@@ -658,13 +658,13 @@ Unknown keys are **ignored** (`extra="ignore"`), so a transcript written by a ne
   objects, so no translation layer is needed inside the engine. Translation happens once, at the edge, in
   `app_server/_projector.py` (core events → public updates) and in the backends (provider format → `LLMChunk`).
 - **Surface neutrality.** Nothing in `types.py` imports Textual, ACP or a UI module, which is what
-  [ADR 0002](../adr/0002-core-engine-and-delivery-surfaces.md) requires ("Keep core events and models surface-neutral").
+  [ADR 0002](../../../adr/0002-core-engine-and-delivery-surfaces.md) requires ("Keep core events and models surface-neutral").
   The only presentation-flavoured fields are the `presentation` hints (`ToolCallPresentation`, `ToolResultPresentation`).
   They are plain data from `vibe/utils` and contain no widgets.
-- **Typed events instead of callbacks.** [ADR 0003](../adr/0003-event-driven-agent-loop.md) prefers "adding or
+- **Typed events instead of callbacks.** [ADR 0003](../../../adr/0003-event-driven-agent-loop.md) prefers "adding or
   extending typed events over adding surface-specific callbacks". The 19 event classes are that contract.
   The projector consumes them with exhaustive `match` statements; `_notice_data` ends with `assert_never(event)`
-  ([`_projector.py:828`](../../vibe/app_server/_projector.py#L828)), so pyright reports any event the projector
+  ([`_projector.py:828`](../../../../vibe/app_server/_projector.py#L828)), so pyright reports any event the projector
   forgot to handle.
 
 ### 8.2 Techniques used
@@ -686,11 +686,11 @@ Unknown keys are **ignored** (`extra="ignore"`), so a transcript written by a ne
 The module's comments mostly explain design decisions rather than restate the code. For example:
 
 - `WorktreeContext` is session state rather than a message "because the worktree is created before the session
-  has a first turn" ([types.py:172-174](../../vibe/core/types.py#L172-L174)).
+  has a first turn" ([types.py:172-174](../../../../vibe/core/types.py#L172-L174)).
 - `pinned_at` is "a timestamp rather than a flag so the pinned shelf can be ordered by when each pin was made"
-  ([types.py:204-206](../../vibe/core/types.py#L204-L206)).
+  ([types.py:204-206](../../../../vibe/core/types.py#L204-L206)).
 - `experiments` are persisted per session, but plan/org attributes are "deliberately NOT persisted here" so a
-  resumed session never reports a stale plan ([types.py:214-218](../../vibe/core/types.py#L214-L218)).
+  resumed session never reports a stale plan ([types.py:214-218](../../../../vibe/core/types.py#L214-L218)).
 
 ### 8.4 Documented workarounds
 
@@ -712,15 +712,15 @@ ACP has no standard representation for compaction yet, so it is shown to clients
 
 | Test file | What it covers |
 |---|---|
-| [`tests/core/test_message_list.py`](../../tests/core/test_message_list.py) | 7 tests: `update_system_prompt` (replace / insert / empty), `reset_preserving_system`, and **two concurrency tests** with a racing thread |
-| [`tests/core/test_llm_message_merge.py`](../../tests/core/test_llm_message_merge.py) | 6 tests: which side wins for `images` and `user_display_content` in `__add__` |
-| [`tests/test_message_id.py`](../../tests/test_message_id.py) | 17 tests: id generation per role, uniqueness, preservation through dicts, `+` and JSON round-trips; event ids |
-| [`tests/agent_loop/test_agent_stats.py`](../../tests/agent_loop/test_agent_stats.py) | ~40 tests: pricing, cached-token cost, `reset_context_state`, listeners surviving clear/reload/compact |
-| [`tests/agent_loop/test_agent_observer_streaming.py`](../../tests/agent_loop/test_agent_observer_streaming.py) | `test_act_merges_streamed_tool_call_arguments`: tool-call fragment merging, end to end |
-| [`tests/agent_loop/test_agent_backend.py`](../../tests/agent_loop/test_agent_backend.py) | refusal via `StopInfo(reason="refusal")` |
+| [`tests/core/test_message_list.py`](../../../../tests/core/test_message_list.py) | 7 tests: `update_system_prompt` (replace / insert / empty), `reset_preserving_system`, and **two concurrency tests** with a racing thread |
+| [`tests/core/test_llm_message_merge.py`](../../../../tests/core/test_llm_message_merge.py) | 6 tests: which side wins for `images` and `user_display_content` in `__add__` |
+| [`tests/test_message_id.py`](../../../../tests/test_message_id.py) | 17 tests: id generation per role, uniqueness, preservation through dicts, `+` and JSON round-trips; event ids |
+| [`tests/agent_loop/test_agent_stats.py`](../../../../tests/agent_loop/test_agent_stats.py) | ~40 tests: pricing, cached-token cost, `reset_context_state`, listeners surviving clear/reload/compact |
+| [`tests/agent_loop/test_agent_observer_streaming.py`](../../../../tests/agent_loop/test_agent_observer_streaming.py) | `test_act_merges_streamed_tool_call_arguments`: tool-call fragment merging, end to end |
+| [`tests/agent_loop/test_agent_backend.py`](../../../../tests/agent_loop/test_agent_backend.py) | refusal via `StopInfo(reason="refusal")` |
 
 On top of these, the types are exercised indirectly by the whole suite: 144 test files import from the module.
-Test doubles in [`tests/mock/utils.py`](../../tests/mock/utils.py) build `LLMChunk`s for fake backends.
+Test doubles in [`tests/mock/utils.py`](../../../../tests/mock/utils.py) build `LLMChunk`s for fake backends.
 
 ### 9.2 Gaps in direct testing
 
@@ -741,12 +741,12 @@ These come from reading the code (see [§10](#10-method-and-limits)). They are o
 | # | Observation | Evidence | Impact |
 |---|---|---|---|
 | F1 | **`TokenUsageUpdatedEvent` is never used.** No file in `vibe/`, `harness/` or `tests/` constructs or matches it. | `grep -rn TokenUsageUpdatedEvent` returns only its definition | dead code; candidate for removal |
-| F2 | **`WaitingForInputEvent` is consumed but never produced.** The projector handles it ([`_projector.py:142`, `799`](../../vibe/app_server/_projector.py#L799)), but nothing in `vibe/` creates one. | grep for `WaitingForInputEvent(` | dead branch, or a producer that was removed |
-| F3 | **`LLMMessage.__add__` drops `injected` and `manual_shell`.** The returned `LLMMessage(...)` does not pass them, so they fall back to `False` / `None`. | [types.py:448-469](../../vibe/core/types.py#L448-L469) | latent only: `+` is used in production just for streamed *assistant* messages ([`_loop.py:3398`](../../vibe/core/agent_loop/_loop.py#L3398)), which never carry these fields |
-| F4 | **`_from_any` mutates the caller's dict.** It calls `v.setdefault(...)` and `v["message_id"] = ...` on the input itself. | [types.py:370-377](../../vibe/core/types.py#L370-L377) | a dict validated twice keeps the *first* generated id (arguably desirable), but callers may be surprised to see their dict changed |
-| F5 | **One listener per field in `AgentStats`.** `_listeners` is a `dict[str, Callable]`, so a second `add_listener("x", ...)` silently replaces the first. | [types.py:87-90](../../vibe/core/types.py#L87-L90) | fine with one subscriber; a trap if a second appears |
+| F2 | **`WaitingForInputEvent` is consumed but never produced.** The projector handles it ([`_projector.py:142`, `799`](../../../../vibe/app_server/_projector.py#L799)), but nothing in `vibe/` creates one. | grep for `WaitingForInputEvent(` | dead branch, or a producer that was removed |
+| F3 | **`LLMMessage.__add__` drops `injected` and `manual_shell`.** The returned `LLMMessage(...)` does not pass them, so they fall back to `False` / `None`. | [types.py:448-469](../../../../vibe/core/types.py#L448-L469) | latent only: `+` is used in production just for streamed *assistant* messages ([`_loop.py:3398`](../../../../vibe/core/agent_loop/_loop.py#L3398)), which never carry these fields |
+| F4 | **`_from_any` mutates the caller's dict.** It calls `v.setdefault(...)` and `v["message_id"] = ...` on the input itself. | [types.py:370-377](../../../../vibe/core/types.py#L370-L377) | a dict validated twice keeps the *first* generated id (arguably desirable), but callers may be surprised to see their dict changed |
+| F5 | **One listener per field in `AgentStats`.** `_listeners` is a `dict[str, Callable]`, so a second `add_listener("x", ...)` silently replaces the first. | [types.py:87-90](../../../../vibe/core/types.py#L87-L90) | fine with one subscriber; a trap if a second appears |
 | F6 | **Two classes named `RefusalError`.** `vibe/acp/exceptions.py:125` defines another one, which ACP maps the core one into. | grep | not a bug, but confusing when reading imports |
-| F7 | **`frozen` is shallow.** `LLMChunk` is frozen, but its `message: LLMMessage` is mutable. | [types.py:502-507](../../vibe/core/types.py#L502-L507) | immutability is a convention, not a guarantee |
+| F7 | **`frozen` is shallow.** `LLMChunk` is frozen, but its `message: LLMMessage` is mutable. | [types.py:502-507](../../../../vibe/core/types.py#L502-L507) | immutability is a convention, not a guarantee |
 | F8 | **The module is large and mixes concerns** (wire types, events, session records, stats, errors). | 798 lines, 50+ public names, no `__all__` | splitting it (e.g. `events.py`, `session_types.py`) would make ownership clearer; AGENTS.md asks `__init__` files to expose an `__all__`, but this module has none |
 
 ### 9.4 Usage statistics
