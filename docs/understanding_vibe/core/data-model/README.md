@@ -33,7 +33,7 @@ Cette documentation répond à une question : **comment les données sont-elles 
 
 Double-cliquer sur [`index.html`](index.html), ou l'ouvrir dans Firefox ou Chromium. Aucun serveur, aucune installation, aucun accès réseau n'est nécessaire : le site n'utilise que du HTML, du CSS et du JavaScript natifs, sans CDN ni police externe. Seuls les liens « Dans le code » (vers GitHub) et les liens vers les autres sujets demandent une connexion.
 
-Raccourcis : `1` à `6` pour aller à une section, `0` pour revenir en haut ; `←` `→` pour avancer dans les démonstrations des sections 3 et 4.
+Raccourcis : `1` à `5` pour aller à une section, `0` pour revenir en haut ; `←` `→` pour avancer dans la démonstration de la section 3.
 
 ## Structure du site
 
@@ -43,9 +43,8 @@ Raccourcis : `1` à `6` pour aller à une section, `0` pour revenir en haut ; `�
 | §1 Vue d'ensemble | schéma conceptuel Interface ↔ App Server ↔ Agent Loop ↔ Backend LLM, avec `types.py` comme socle | clic ou survol d'une flèche, d'un composant ou d'une famille de types : types échangés et liens vers le code |
 | §2 Diagrammes de classes | A : messages et streaming ; B : hiérarchie des événements (notation UML : héritage, composition, agrégation, dépendance) | clic sur une classe : déclaration complète, rôle, relations surlignées |
 | §3 La vie d'un message | « Liste les fichiers de mon projet. » en 9 étapes, de `act()` à la réponse finale | Précédent / Suivant / Recommencer, variante `rm -rf build` pour la demande d'approbation |
-| §4 Streaming Lab | reconstruction de `"Bon" + "jour" + " !"` et d'arguments JSON d'un appel d'outil | fragment par fragment, règles appliquées, comparaison naïf/réel, cas limites |
-| §5 Choix de conception | 11 choix classés en style architectural, patterns et techniques | filtres, cartes dépliables (problème, solution, avantage, exemple) |
-| §6 Conclusion | trois messages à retenir et liens vers les sujets voisins | — |
+| §4 Choix de conception | 11 choix classés en style architectural, patterns et techniques | filtres, cartes dépliables (problème, solution, avantage, exemple) |
+| §5 Conclusion | trois messages à retenir et liens vers les sujets voisins | — |
 
 ## Sources
 
@@ -59,7 +58,6 @@ Raccourcis : `1` à `6` pour aller à une section, `0` pour revenir en haut ; `�
 - **Moteur simulé.** Les sections 1 et 3 décrivent le moteur Python (`AgentLoop`, `vibe --legacy-harness`), le seul qui utilise tout le modèle de `types.py`. Le moteur par défaut, le Unified Harness, n'est pas couvert.
 - **Valeurs d'exemple.** Identifiants, nombres de tokens, découpage des fragments et sorties de commandes sont fictifs ; aucun modèle ni outil n'est appelé. La valeur exacte de `StopInfo.reason` dépend du fournisseur.
 - **Scénario simplifié.** Un seul appel d'outil, sans hooks, middleware ni compaction ; la liste des outils envoyée au modèle est réduite à `bash`. L'analyse de la commande bash (`ls` autorisé d'office) s'applique sous un shell POSIX.
-- **Streaming Lab.** Les états sont calculés par une transcription en JavaScript de `LLMMessage.__add__` et `LLMChunk.__add__`, limitée aux champs affichés. Elle a été relue ligne à ligne contre le code mais **pas exécutée face au vrai Python** (pas d'environnement `uv` disponible).
 - **Schéma conceptuel.** Le schéma de la section 1 montre les données échangées, pas chaque appel réel.
 
 ## Liens avec les autres sujets

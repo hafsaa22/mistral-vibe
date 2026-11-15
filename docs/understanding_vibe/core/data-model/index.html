@@ -21,9 +21,8 @@
           <li><a href="#overview"><span class="sections-nav__num">1</span>Vue d'ensemble</a></li>
           <li><a href="#classes"><span class="sections-nav__num">2</span>Classes</a></li>
           <li><a href="#lifecycle"><span class="sections-nav__num">3</span>Vie d'un message</a></li>
-          <li><a href="#streaming"><span class="sections-nav__num">4</span>Streaming Lab</a></li>
-          <li><a href="#design"><span class="sections-nav__num">5</span>Conception</a></li>
-          <li><a href="#conclusion"><span class="sections-nav__num">6</span>Conclusion</a></li>
+          <li><a href="#design"><span class="sections-nav__num">4</span>Conception</a></li>
+          <li><a href="#conclusion"><span class="sections-nav__num">5</span>Conclusion</a></li>
         </ol>
       </nav>
     </div>
@@ -315,72 +314,9 @@
     </section>
 
     <!-- ============================================================ 4 -->
-    <section class="section" id="streaming" aria-labelledby="streaming-title">
-      <header class="section__head">
-        <p class="section__num">§4</p>
-        <h2 id="streaming-title">Streaming Lab</h2>
-        <p class="section__lead">
-          Le modèle répond en fragments. <code>LLMChunk.__add__</code> et <code>LLMMessage.__add__</code>
-          les rassemblent en un seul message, et ce n'est pas qu'une concaténation de texte.
-        </p>
-      </header>
-
-      <div class="lab" id="lab">
-        <div class="sim__toolbar">
-          <div class="sim__variant" role="radiogroup" aria-label="Scénario">
-            <span class="sim__variant-label">Scénario&nbsp;:</span>
-            <button type="button" class="seg" role="radio" aria-checked="true" data-scenario="text">Texte <code>"Bon" + "jour" + " !"</code></button>
-            <button type="button" class="seg" role="radio" aria-checked="false" data-scenario="tool">Arguments d'un appel d'outil</button>
-          </div>
-          <div class="sim__controls">
-            <button type="button" class="btn" id="lab-reset">⟲ Recommencer</button>
-            <button type="button" class="btn" id="lab-prev">← Précédent</button>
-            <button type="button" class="btn btn--primary" id="lab-next">Fragment suivant →</button>
-            <span class="sim__counter" id="lab-counter" aria-live="polite"></span>
-          </div>
-        </div>
-
-        <p class="lab__code"><code>chunk_agg = processed_chunk if chunk_agg is None else chunk_agg + processed_chunk</code>
-          <a href="https://github.com/rrobbes/mistral-vibe/blob/5e931ff306602964a7abbabb7d3026dd76c71e31/vibe/core/agent_loop/_loop.py#L3394-L3398" target="_blank" rel="noopener">_loop.py:3394–3398</a></p>
-
-        <div class="lab__cols">
-          <section class="lab__col" aria-labelledby="lab-in-title">
-            <p class="panel__label" id="lab-in-title">① Fragment reçu</p>
-            <div id="lab-in"></div>
-          </section>
-          <section class="lab__col" aria-labelledby="lab-rules-title">
-            <p class="panel__label" id="lab-rules-title">② Règles appliquées</p>
-            <ul class="lab__rules" id="lab-rules"></ul>
-          </section>
-          <section class="lab__col" aria-labelledby="lab-out-title">
-            <p class="panel__label" id="lab-out-title">③ <code>chunk_agg</code> après l'opération</p>
-            <div id="lab-out"></div>
-            <p class="lab__json" id="lab-json" hidden></p>
-          </section>
-        </div>
-
-        <div class="lab__bottom">
-          <div class="lab__box">
-            <p class="callout__title">Naïf ou réel&nbsp;?</p>
-            <div id="lab-naive"></div>
-          </div>
-          <div class="lab__box">
-            <p class="callout__title">Cas limites : ce que <code>+</code> refuse</p>
-            <div class="lab__edges">
-              <button type="button" class="seg" data-edge="role">Rôles différents</button>
-              <button type="button" class="seg" data-edge="index">Fragment sans <code>index</code></button>
-              <button type="button" class="seg" data-edge="name">Deux noms d'outil</button>
-            </div>
-            <div id="lab-edge" aria-live="polite"><p class="lab__muted">Choisissez un cas pour voir l'exception levée par <code>LLMMessage.__add__</code>.</p></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================================ 5 -->
     <section class="section" id="design" aria-labelledby="design-title">
       <header class="section__head">
-        <p class="section__num">§5</p>
+        <p class="section__num">§4</p>
         <h2 id="design-title">Choix de conception</h2>
         <p class="section__lead">
           Ce que le code montre réellement, classé en trois niveaux : style architectural, patterns et techniques.
@@ -414,10 +350,10 @@
       </aside>
     </section>
 
-    <!-- ============================================================ 6 -->
+    <!-- ============================================================ 5 -->
     <section class="section" id="conclusion" aria-labelledby="conclusion-title">
       <header class="section__head">
-        <p class="section__num">§6</p>
+        <p class="section__num">§5</p>
         <h2 id="conclusion-title">Conclusion</h2>
       </header>
 

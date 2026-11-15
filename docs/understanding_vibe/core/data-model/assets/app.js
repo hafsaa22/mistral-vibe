@@ -5,7 +5,7 @@
 (() => {
   "use strict";
 
-  const SECTION_IDS = ["overview", "classes", "lifecycle", "streaming", "design", "conclusion"];
+  const SECTION_IDS = ["overview", "classes", "lifecycle", "design", "conclusion"];
   const navLinks = new Map(
     SECTION_IDS.map((id) => [id, document.querySelector(`.sections-nav a[href="#${id}"]`)])
   );
@@ -133,7 +133,7 @@
     },
     "llm-loop": {
       title: "Backend LLM → Agent Loop", label: "chunks", color: "stream", nodes: ["llm", "loop"],
-      text: "Chaque backend traduit le format de son fournisseur en LLMChunk, puis les envoie un par un. La boucle les additionne avec + (voir le Streaming Lab).",
+      text: "Chaque backend traduit le format de son fournisseur en LLMChunk, puis les envoie un par un. La boucle les additionne avec +.",
       types: [
         ["LLMChunk", "stream", "un fragment de réponse (figé)"],
         ["LLMMessage", "msg", "le contenu du fragment, dans chunk.message"],
@@ -751,7 +751,7 @@
       history: [H.sys, H.user, H.call],
       fresh: 2,
       text: [
-        `Au fil du flux, la boucle calcule <code>chunk_agg = chunk_agg + chunk</code>. <code>LLMChunk.__add__</code> délègue à <code>LLMMessage.__add__</code>, qui recolle les arguments ayant le même <code>index</code> (détails dans le Streaming Lab, §4).`,
+        `Au fil du flux, la boucle calcule <code>chunk_agg = chunk_agg + chunk</code>. <code>LLMChunk.__add__</code> délègue à <code>LLMMessage.__add__</code>, qui recolle les arguments ayant le même <code>index</code>.`,
         `Le message assistant reconstruit rejoint l'historique et le <code>LLMUsage</code> cumulé met à jour <code>AgentStats</code>.`,
       ],
       objects: [
@@ -845,7 +845,7 @@
     }),
   ];
 
-  // Object cards, shared by §3 and §4. Colors a Python-ish value: literals, then strings.
+  // Object cards, used by §3. Colors a Python-ish value: literals, then strings.
   function colorValue(val) {
     if (/^(None|True|False|-?\d[\d.]*|\[\]|\+= \d+)$/.test(val)) return `<span class="n">${escapeHtml(val)}</span>`;
     // split on string literals first, then escape each piece (escaping first would hide the quotes)
@@ -932,219 +932,7 @@
   }
 
   // =========================================================================
-  // §4 — Streaming Lab. The aggregate is *computed* by a line-by-line port of
-  // LLMMessage.__add__ (types.py:401-469) and LLMChunk.__add__ (types.py:509-519),
-  // limited to the fields shown here. Fragments are shaped like those of the
-  // Mistral backend (mistral.py:606-630): a fresh message_id per fragment,
-  // a zero LLMUsage until the last one, stop only at the end.
-  // =========================================================================
-
-  const T = (lines, label) => ref(TYPES, lines, label || `types.py:${lines.replace("-", "–")}`, "");
-
-  function addMessage(a, b, rules) {
-    if (a.role !== b.role) throw new Error("Can't accumulate messages with different roles");
-    const content = (a.content || "") + (b.content || "");
-    if (a.content || b.content) {
-      rules.push({ cls: "is-left", html: `<strong>content</strong> : concaténé « ${escapeHtml(a.content || "")} » + « ${escapeHtml(b.content || "")} » → « ${escapeHtml(content)} »`, link: T("412-414") });
-    } else {
-      rules.push({ cls: "is-left", html: `<strong>content</strong> : <code>""</code> + <code>""</code> → chaîne vide, donc <code>None</code>`, link: T("412-414") });
-    }
-
-    const map = new Map();
-    for (const [side, calls] of [["left", a.tool_calls || []], ["right", b.tool_calls || []]]) {
-      for (const tc of calls) {
-        if (tc.index == null) throw new Error("Tool call chunk missing index");
-        if (!map.has(tc.index)) {
-          map.set(tc.index, { ...tc });
-          if (side === "right") rules.push({ cls: "is-left", html: `<strong>tool_calls</strong> : nouvel index ${tc.index}, copié (<code>deepcopy</code>)`, link: T("432-433") });
-          continue;
-        }
-        const cur = map.get(tc.index);
-        if (cur.name && tc.name && cur.name !== tc.name) throw new Error("Can't accumulate messages with different tool call names");
-        if (tc.name && !cur.name) cur.name = tc.name;
-        const before = cur.arguments || "";
-        cur.arguments = before + (tc.arguments || "");
-        if (side === "right") {
-          rules.push({ cls: "is-sum", html: `<strong>tool_calls[index=${tc.index}]</strong> : même index, arguments recollés <code>${escapeHtml(`'${before}'`)}</code> + <code>${escapeHtml(`'${tc.arguments || ""}'`)}</code>${tc.name ? "" : " (le nom manque dans ce fragment : on garde « " + escapeHtml(cur.name) + " »)"}`, link: T("434-446") });
-        }
-      }
-    }
-
-    rules.push({ cls: "is-left", html: `<strong>message_id</strong> : celui de <em>gauche</em> est gardé (<code>${b.message_id}</code> est ignoré)`, link: T("460") });
-    return { role: a.role, content: content || null, message_id: a.message_id, tool_calls: map.size ? [...map.values()] : null };
-  }
-
-  const sumUsage = (x, y) => ({ p: x.p + y.p, c: x.c + y.c });
-  const fmtUsage = (u) => (u ? `LLMUsage(prompt_tokens=${u.p}, completion_tokens=${u.c})` : "None");
-
-  function addChunk(a, b, rules) {
-    const message = addMessage(a.message, b.message, rules);
-    let usage = null;
-    if (a.usage || b.usage) {
-      usage = sumUsage(a.usage || { p: 0, c: 0 }, b.usage || { p: 0, c: 0 });
-      rules.push({ cls: "is-sum", html: `<strong>usage</strong> : additionné champ par champ → <code>${fmtUsage(usage)}</code>`, link: T("510-513") });
-    }
-    const correlation_id = b.correlation_id || a.correlation_id;
-    if (b.correlation_id || a.correlation_id) rules.push({ cls: "is-right", html: `<strong>correlation_id</strong> : celui de <em>droite</em> l'emporte s'il existe`, link: T("517") });
-    const stop = b.stop || a.stop;
-    rules.push({ cls: "is-right", html: b.stop ? `<strong>stop</strong> : celui de <em>droite</em> l'emporte → <code>StopInfo(reason="${b.stop}")</code>` : `<strong>stop</strong> : <code>None</code> à droite, on garde ${a.stop ? "celui de gauche" : "<code>None</code>"}`, link: T("518") });
-    return { message, usage, correlation_id, stop };
-  }
-
-  const fmtCalls = (calls) =>
-    calls ? `[${calls.map((t) => `ToolCall(index=${t.index}${t.id ? `, id="${t.id}"` : ""}, name=${t.name ? `"${t.name}"` : "None"}, arguments='${t.arguments}')`).join(", ")}]` : "None";
-
-  function chunkRows(ch) {
-    const rows = [["message.content", ch.message.content == null ? "None" : JSON.stringify(ch.message.content)], ["message.message_id", `"${ch.message.message_id}"`]];
-    if (ch.message.tool_calls || ch.kind === "tool") rows.push(["message.tool_calls", fmtCalls(ch.message.tool_calls)]);
-    rows.push(["usage", fmtUsage(ch.usage)], ["correlation_id", ch.correlation_id ? `"${ch.correlation_id}"` : "None"], ["stop", ch.stop ? `StopInfo(reason="${ch.stop}")` : "None"]);
-    return rows;
-  }
-
-  const frag = (kind, id, content, extra = {}) => ({
-    kind,
-    message: { role: "assistant", content, message_id: id, tool_calls: extra.calls || null },
-    usage: extra.usage || { p: 0, c: 0 },
-    correlation_id: "c-42",
-    stop: extra.stop || null,
-  });
-
-  const SCENARIOS = {
-    text: [
-      frag("text", "a1f0…", "Bon"),
-      frag("text", "7c2e…", "jour"),
-      frag("text", "e93b…", " !", { usage: { p: 1200, c: 3 }, stop: "stop" }),
-    ],
-    tool: [
-      frag("tool", "a1f0…", "", { calls: [{ index: 0, id: "call_1", name: "bash", arguments: '{"comm' }] }),
-      frag("tool", "7c2e…", "", { calls: [{ index: 0, id: null, name: null, arguments: 'and": "l' }] }),
-      frag("tool", "e93b…", "", { calls: [{ index: 0, id: null, name: null, arguments: 's"}' }], usage: { p: 1840, c: 18 }, stop: "tool_calls" }),
-    ],
-  };
-
-  const lab = document.getElementById("lab");
-  if (lab) {
-    const $ = (id) => document.getElementById(id);
-    const scenarioButtons = [...lab.querySelectorAll(".seg[data-scenario]")];
-    let scenario = "text";
-    let pos = 1; // number of fragments received
-
-    function compute(upTo) {
-      const frags = SCENARIOS[scenario];
-      let agg = null;
-      let rules = [];
-      for (let i = 0; i < upTo; i++) {
-        rules = [];
-        if (agg === null) {
-          agg = structuredClone(frags[i]);
-          rules.push({ cls: "is-first", html: `<code>chunk_agg</code> valait <code>None</code> : il devient simplement ce premier fragment, sans addition.`, link: ref(LOOP, "3394-3398", "_loop.py:3394–3398", "") });
-          rules.push({ cls: "", html: `Chaque fragment est un <code>LLMMessage</code> créé sans <code>message_id</code> : le validateur <code>_from_any</code> lui en attribue un nouveau.`, link: T("373-374") });
-        } else {
-          agg = addChunk(agg, frags[i], rules);
-        }
-      }
-      return { frag: frags[upTo - 1], agg, rules };
-    }
-
-    function renderNaive() {
-      const frags = SCENARIOS[scenario].slice(0, pos);
-      if (scenario === "text") {
-        $("lab-naive").innerHTML = `
-          <p>Pour le texte, une concaténation naïve donnerait le même <code>content</code> : « ${escapeHtml(frags.map((f) => f.message.content).join(""))} ».</p>
-          <p>La différence est ailleurs : l'<strong>identité</strong> (on garde le <code>message_id</code> du premier fragment, celui que l'interface connaît déjà), l'<strong>usage</strong> (on additionne) et le <strong>stop</strong> (on garde le plus récent).</p>`;
-      } else {
-        const naive = frags.flatMap((f) => f.message.tool_calls);
-        $("lab-naive").innerHTML = `
-          <p>Mettre bout à bout les listes <code>tool_calls</code> donnerait <strong>${naive.length} appel${naive.length > 1 ? "s" : ""}</strong>, dont ${naive.filter((t) => !t.name).length} sans nom, aux arguments incomplets :</p>
-          <p class="lab__expr">${escapeHtml(fmtCalls(naive))}</p>
-          <p>Le vrai <code>+</code> regroupe les fragments par <code>index</code> : un seul appel, nom conservé, arguments recollés.</p>`;
-      }
-    }
-
-    function render() {
-      const frags = SCENARIOS[scenario];
-      const { frag: f, agg, rules } = compute(pos);
-      $("lab-counter").textContent = `Fragment ${pos} / ${frags.length}`;
-      $("lab-in").innerHTML = renderObject({ cls: `LLMChunk #${pos}`, fam: "stream", tag: "reçu", rows: chunkRows(f) });
-      $("lab-rules").innerHTML = rules
-        .map((r) => `<li class="${r.cls}">${r.html} <a href="${r.link.url}" target="_blank" rel="noopener">${escapeHtml(r.link.label)}</a></li>`)
-        .join("");
-      $("lab-out").innerHTML = renderObject({ cls: "chunk_agg", fam: "stream", tag: pos === 1 ? "= fragment #1" : `= #1 + … + #${pos}`, rows: chunkRows({ ...agg, kind: scenario }) });
-
-      const json = $("lab-json");
-      json.hidden = scenario !== "tool";
-      if (scenario === "tool") {
-        const args = agg.message.tool_calls[0].arguments;
-        let ok = true;
-        try { JSON.parse(args); } catch { ok = false; }
-        json.className = `lab__json ${ok ? "is-ok" : "is-ko"}`;
-        json.textContent = ok ? `✔ arguments = ${args} : JSON valide, l'outil peut être appelé` : `✘ arguments = ${args} : JSON encore incomplet`;
-      }
-      renderNaive();
-      $("lab-prev").disabled = pos === 1;
-      $("lab-next").disabled = pos === frags.length;
-    }
-
-    function go(n) {
-      pos = Math.max(1, Math.min(SCENARIOS[scenario].length, n));
-      render();
-    }
-
-    $("lab-next").addEventListener("click", () => go(pos + 1));
-    $("lab-prev").addEventListener("click", () => go(pos - 1));
-    $("lab-reset").addEventListener("click", () => go(1));
-    scenarioButtons.forEach((b) =>
-      b.addEventListener("click", () => {
-        scenario = b.dataset.scenario;
-        scenarioButtons.forEach((x) => x.setAttribute("aria-checked", String(x === b)));
-        go(1);
-      })
-    );
-
-    // Edge cases run the same port, so the error comes from the same rule.
-    const EDGES = {
-      role: {
-        expr: 'LLMMessage(role="assistant", content="a") + LLMMessage(role="user", content="b")',
-        run: () => addMessage({ role: "assistant", content: "a", message_id: "x" }, { role: "user", content: "b", message_id: "y" }, []),
-        link: T("403-404"),
-        why: "Additionner deux messages n'a de sens que pour les morceaux d'un même message.",
-      },
-      index: {
-        expr: "LLMMessage(tool_calls=[ToolCall(index=0, …)]) + LLMMessage(tool_calls=[ToolCall(index=None, …)])",
-        run: () => addMessage({ role: "assistant", tool_calls: [{ index: 0, name: "bash", arguments: "" }], message_id: "x" }, { role: "assistant", tool_calls: [{ index: null, arguments: "{" }], message_id: "y" }, []),
-        link: T("430-431"),
-        why: "Sans index, impossible de savoir à quel appel rattacher le fragment.",
-      },
-      name: {
-        expr: 'ToolCall(index=0, name="bash") + ToolCall(index=0, name="grep")',
-        run: () => addMessage({ role: "assistant", tool_calls: [{ index: 0, name: "bash", arguments: "" }], message_id: "x" }, { role: "assistant", tool_calls: [{ index: 0, name: "grep", arguments: "" }], message_id: "y" }, []),
-        link: T("437-440"),
-        why: "Un même index ne peut pas désigner deux outils différents.",
-      },
-    };
-    lab.querySelectorAll(".seg[data-edge]").forEach((b) =>
-      b.addEventListener("click", () => {
-        const e = EDGES[b.dataset.edge];
-        let msg = "(aucune erreur)";
-        try { e.run(); } catch (err) { msg = `ValueError: ${err.message}`; }
-        lab.querySelectorAll(".seg[data-edge]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-        $("lab-edge").innerHTML = `<p class="lab__expr">${escapeHtml(e.expr)}</p><p class="lab__error">${escapeHtml(msg)}</p><p>${escapeHtml(e.why)} <a href="${e.link.url}" target="_blank" rel="noopener">${escapeHtml(e.link.label)}</a></p>`;
-      })
-    );
-
-    document.addEventListener("keydown", (event) => {
-      if (currentSection !== "streaming" || event.altKey || event.ctrlKey || event.metaKey) return;
-      const target = event.target;
-      if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable], [role="tab"]')) return;
-      if (event.key === "ArrowRight") { event.preventDefault(); go(pos + 1); }
-      if (event.key === "ArrowLeft") { event.preventDefault(); go(pos - 1); }
-    });
-
-    render();
-  }
-
-  // =========================================================================
-  // §5 — Design choices, by level. Each card: problem, solution, benefit,
+  // §4 — Design choices, by level. Each card: problem, solution, benefit,
   // a real example and links whose `expect` text is checked like in §3.
   // =========================================================================
 
@@ -1204,7 +992,7 @@
       solution: "__add__ est défini sur LLMMessage, LLMChunk, LLMUsage et AssistantEvent.",
       benefit: "Dans la boucle, l'agrégation tient en une ligne.",
       example: "chunk_agg = processed_chunk if chunk_agg is None else chunk_agg + processed_chunk",
-      caveat: "Non commutatif : l'ordre des opérandes compte (voir le Streaming Lab).",
+      caveat: "Non commutatif : l'ordre des opérandes compte.",
       links: [ref(TYPES, "401", "LLMMessage.__add__", "def __add__(self, other: LLMMessage)"), ref(LOOP, "3394-3398", "utilisation dans la boucle", "processed_chunk = LLMChunk(")] },
     { level: "tech", title: "Union discriminée, StrEnum et Literal",
       problem: "Représenter des choix fermés sans chaînes libres sujettes aux fautes.",
@@ -1266,7 +1054,7 @@
     });
   }
 
-  // --- Keyboard: 1–6 jump to a section, 0 back to the top -----------------
+  // --- Keyboard: 1–5 jump to a section, 0 back to the top -----------------
   document.addEventListener("keydown", (event) => {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
     const target = event.target;
